@@ -1,7 +1,7 @@
-Documentazione del Progetto prokect_work_mp
+Documentazione del Progetto project_work_mp
 ===========================================
 
-Benvenuto nella documentazione del progetto **prokect_work_di_manfredi_piraino**. Qui troverai tutte le informazioni necessarie per comprendere e utilizzare il progetto.
+Benvenuto nella documentazione del progetto **project_work_di_manfredi_piraino**. Qui troverai tutte le informazioni necessarie per comprendere e utilizzare il progetto.
 
 Per maggiori informazioni consulta la documentazione di seguito.
 
