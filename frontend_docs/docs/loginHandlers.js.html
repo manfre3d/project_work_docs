@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: loginHandlers.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: loginHandlers.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import { showModal,showLoading,hideLoading } from "./utility.js";
+import { showSection } from "./navigationHandlers.js";
+import {
+  loginForm,
+  btnLogout,
+  sectionLogin,
+  setCurrentUserId,
+  btnConfirmRegister,
+  btnRegister,
+  btnLogin
+} from "./references.js";
+import { updateBookingUIBasedOnRole } from "./utility.js";
+import { loadAllBookings } from "./booking/bookingHandlers.js";
+
+/**
+  * funzione per verificare se è presente un utente loggato all'avvio dell'applicazione
+ */
+export async function checkLoggedUserOnInit() {
+
+  console.log("Inizializzazione app...");
+  try {
+    showLoading();
+    const response = await fetch("/current-user", {
+      method: "GET",
+      credentials: "include",
+    });
+
+    if (response.ok) {
+      const userData = await response.json();
+
+      setCurrentUserId(userData.id);
+      sessionStorage.setItem("userRole", userData.role);
+
+      showModal("Login effettuato", `Bentornato, ${userData.username}!`);
+
+      updateBookingUIBasedOnRole(userData.role);
+      loadAllBookings();
+
+      btnLogin.style.display = "none";
+      btnLogout.style.display = "inline-block";
+      btnRegister.style.display = "none";
+    } else {
+      console.log("Sessione scaduta. Richiedere il login.");
+    }
+  } catch (error) {
+    console.error("Errore durante il recupero dell'utente:", error);
+  } finally {
+    hideLoading(); 
+  }
+}
+/**
+  * funzione per gestire il login dell'utente, in caso di successo 
+  * indirizza l'utente alla pagina di prenotazione inizializzando la pagina di prenotazione
+ */
+export function setupLoginHandler() {
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
+
+    try {
+      const response = await fetch("login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        // proprieta' necessaria per inviare i cookie al server
+        credentials: "include",
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (!response.ok) {
+        const errMsg = await response.json();
+        throw new Error(errMsg.error || "Errore durante il login");
+      }
+
+      const userData = await response.json();
+
+      // Imposta l'utente corrente
+      setCurrentUserId(userData.id);
+      // salva il ruolo dell'utente in sessionStorage - storage persistente fino alla chiusura della finestra del browser
+      sessionStorage.setItem("userRole", userData.role);
+
+      showModal("Login effettuato", `Bentornato, ${userData.username}!`);
+
+      // Mostra/nascondi elementi basati sul ruolo
+      updateBookingUIBasedOnRole(userData.role);
+      loadAllBookings();
+
+      // Mostra il pulsante logout e nasconde il pulsante di registrazione
+      btnLogin.style.display = "none";
+      btnLogout.style.display = "inline-block";
+      btnRegister.style.display = "none";
+    } catch (error) {
+      console.error("Errore durante il login:", error);
+      showModal("Errore", `Login fallito: ${error.message}`);
+    }
+  });
+}
+/**
+  * funzione per gestire il logout dell'utente. 
+  * reinizzializza le variabili di sessione e indirizza l'utente alla pagina di login
+  * 
+*/
+export function setupLogoutHandler() {
+  console.log("btnLogout:", btnLogout); // log per verificare il riferimento
+  if (!btnLogout) {
+    console.error("Errore: btnLogout non trovato nel DOM.");
+    return;
+  }
+
+  btnLogout.addEventListener("click", async () => {
+    try {
+      const response = await fetch("logout", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errMsg = await response.json();
+        throw new Error(errMsg.error || "Errore durante il logout");
+      }
+
+      // mostra un messaggio di conferma logout
+      showModal("Logout effettuato", "Sei stato disconnesso con successo.");
+      sessionStorage.setItem("userRole", null);
+      // Imposta l'utente corrente
+      setCurrentUserId(null);
+
+      // nascondi il pulsante logout
+      btnLogout.style.display = "none";
+      btnRegister.style.display = "inline-block";
+      btnLogin.style.display = "inline-block";
+      // mostra la sezione di login
+      showSection(sectionLogin);
+    } catch (error) {
+      console.error("Errore durante il logout:", error);
+      showModal("Errore", `Logout fallito: ${error.message}`);
+    }
+  });
+}
+/**
+ * funzione per gestire la registrazione dell'utente
+ */
+export function setupRegisterHandler() {
+  //form di registrazione
+
+  btnConfirmRegister.addEventListener("click", async () => {
+    const form = document.getElementById("register-form");
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+    const username = document.getElementById("registerUsername").value.trim();
+    const email = document.getElementById("registerEmail").value.trim();
+    const password = document.getElementById("registerPassword").value.trim();
+
+    if (!username || !email || !password) {
+      showModal("Errore", "Tutti i campi sono obbligatori!");
+      return;
+    }
+
+    try {
+      showLoading();
+      const response = await fetch("users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, email, password }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Errore durante la registrazione");
+      }
+
+      showModal(
+        "Registrazione completata",
+        "Registrazione avvenuta con successo! Ora puoi accedere."
+      );
+      document.getElementById("register-form").reset();
+      const registerModal = bootstrap.Modal.getInstance(
+        document.getElementById("registerModal")
+      );
+      registerModal.hide();
+    } catch (error) {
+      console.error("Errore durante la registrazione:", error);
+      showModal("Errore", `Registrazione fallita: ${error.message}`);
+    } finally {
+      hideLoading(); 
+    }
+  });
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#checkLoggedUserOnInit">checkLoggedUserOnInit</a></li><li><a href="global.html#handleBtnBookingsClick">handleBtnBookingsClick</a></li><li><a href="global.html#handleBtnLoginClick">handleBtnLoginClick</a></li><li><a href="global.html#handleBtnNewBookingClick">handleBtnNewBookingClick</a></li><li><a href="global.html#init">init</a></li><li><a href="global.html#loadServices">loadServices</a></li><li><a href="global.html#populateServicesDropdown">populateServicesDropdown</a></li><li><a href="global.html#setupLoginHandler">setupLoginHandler</a></li><li><a href="global.html#setupLogoutHandler">setupLogoutHandler</a></li><li><a href="global.html#setupNavHandlers">setupNavHandlers</a></li><li><a href="global.html#setupRegisterHandler">setupRegisterHandler</a></li><li><a href="global.html#showSection">showSection</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Wed Feb 05 2025 21:55:29 GMT+0100 (Ora standard dell’Europa centrale)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
